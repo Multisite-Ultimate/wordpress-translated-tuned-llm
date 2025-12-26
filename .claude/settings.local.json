@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(tree:*)",
+      "WebFetch(domain:www.mercity.ai)",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:translated.com)",
+      "WebFetch(domain:make.wordpress.org)",
+      "WebFetch(domain:developer.wordpress.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:translate.wordpress.org)",
+      "Bash(./run.py:*)",
+      "Bash(python3:*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(export:*)",
+      "Bash(PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128 ./run.py:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

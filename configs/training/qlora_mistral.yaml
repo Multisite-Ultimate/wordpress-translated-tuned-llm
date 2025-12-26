@@ -1,0 +1,74 @@
+# QLoRA fine-tuning configuration for Mistral 7B
+# Optimized for 2x 10GB VRAM GPUs
+
+# Model settings
+model:
+  name: "mistralai/Mistral-7B-Instruct-v0.2"
+  tokenizer: "mistralai/Mistral-7B-Instruct-v0.2"
+  trust_remote_code: false
+
+# Quantization settings (QLoRA)
+quantization:
+  load_in_4bit: true
+  bnb_4bit_compute_dtype: "bfloat16"
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: true
+
+# LoRA configuration
+lora:
+  r: 64
+  alpha: 16
+  dropout: 0.1
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Training hyperparameters
+training:
+  num_epochs: 3
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 16  # Effective batch size = 32
+  learning_rate: 2.0e-4
+  warmup_ratio: 0.03
+  weight_decay: 0.001
+  max_grad_norm: 0.3
+  lr_scheduler_type: "cosine"
+  max_seq_length: 512
+
+  # Memory optimization
+  gradient_checkpointing: true
+  optim: "paged_adamw_8bit"
+  bf16: true
+  tf32: true
+
+  # Logging and saving
+  logging_steps: 10
+  save_steps: 500
+  eval_steps: 500
+  save_total_limit: 3
+
+  # Multi-GPU settings (DDP for 2x 10GB)
+  ddp_find_unused_parameters: false
+  dataloader_num_workers: 4
+  dataloader_pin_memory: true
+
+  # Reproducibility
+  seed: 42
+
+# Output paths
+output:
+  dir: "./models/checkpoints"
+  final_model_dir: "./models/final"
+  adapter_dir: "./models/adapters"
+
+# Evaluation during training
+evaluation:
+  strategy: "steps"
+  batch_size: 4

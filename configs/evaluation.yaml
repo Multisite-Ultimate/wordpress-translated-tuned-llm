@@ -1,0 +1,57 @@
+# Evaluation configuration for translation quality
+
+# COMET metric configuration
+comet:
+  model: "Unbabel/wmt22-comet-da"
+  batch_size: 8
+  gpus: 1
+
+# BLEU configuration
+bleu:
+  smooth_method: "exp"
+  smooth_value: null
+  lowercase: false
+  tokenize: null  # Use default tokenizer
+
+# ChrF configuration
+chrf:
+  char_order: 6
+  word_order: 0
+  beta: 2
+
+# Inference settings for evaluation
+inference:
+  max_new_tokens: 256
+  temperature: 0.1
+  top_p: 0.9
+  do_sample: false
+  num_beams: 1  # Greedy decoding for consistency
+  repetition_penalty: 1.0
+
+# Evaluation settings
+evaluation:
+  batch_size: 16
+  save_predictions: true
+  num_samples_to_display: 20
+
+  # Thresholds for quality assessment
+  quality_thresholds:
+    comet:
+      excellent: 0.85
+      good: 0.75
+      acceptable: 0.65
+    bleu:
+      excellent: 40.0
+      good: 30.0
+      acceptable: 20.0
+    chrf:
+      excellent: 0.75
+      good: 0.65
+      acceptable: 0.55
+
+# Report settings
+report:
+  format: "markdown"  # markdown, json, html
+  include_samples: true
+  num_best_samples: 10
+  num_worst_samples: 10

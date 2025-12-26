@@ -1,0 +1,57 @@
+# Base configuration for WordPress Translation LLM
+project:
+  name: "wordpress-translation-llm"
+  version: "1.0.0"
+
+# Path configuration
+paths:
+  data_dir: "./data"
+  raw_data: "./data/raw"
+  processed_data: "./data/processed"
+  datasets: "./data/datasets"
+  models: "./models"
+  logs: "./logs"
+
+# Downloader configuration
+downloader:
+  rate_limit_rpm: 30  # Requests per minute
+  timeout_seconds: 30
+  max_retries: 3
+  retry_delay_seconds: 5
+  user_agent: "WordPressTranslationBot/1.0 (research; polite)"
+
+  # Project types to download
+  project_types:
+    - "wp-plugins"
+    - "wp-themes"
+    - "wordpress"  # Core
+
+# Parser configuration
+parser:
+  min_source_length: 3
+  max_source_length: 512
+  filter_fuzzy: true
+  filter_duplicates: true
+  filter_same_source_target: true
+
+  # Placeholder patterns to preserve
+  placeholder_patterns:
+    - "%s"
+    - "%d"
+    - "%f"
+    - "%1$s"
+    - "%2$s"
+    - "{name}"
+    - "{{variable}}"
+
+# Dataset configuration
+dataset:
+  test_size: 0.2  # 20% for testing
+  random_state: 42
+  max_seq_length: 512
+  stratify_by_project: true
+
+# Default locale settings
+locale:
+  source_language: "English"
+  source_code: "en"

@@ -1,0 +1,54 @@
+# Core ML
+torch>=2.2.0
+transformers>=4.38.0
+datasets>=2.17.0
+accelerate>=0.27.0
+peft>=0.8.2
+trl>=0.7.10
+bitsandbytes>=0.42.0
+
+# Translation Evaluation
+unbabel-comet>=2.2.0
+sacrebleu>=2.4.0
+
+# PO File Parsing
+polib>=1.2.0
+
+# HTTP/Async
+aiohttp>=3.9.0
+aiofiles>=23.2.0
+tenacity>=8.2.0
+
+# Web Scraping
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# CLI
+typer[all]>=0.9.0
+rich>=13.7.0
+
+# Config
+pyyaml>=6.0.1
+pydantic>=2.6.0
+pydantic-settings>=2.1.0
+
+# API Server
+fastapi>=0.109.0
+uvicorn>=0.27.0
+
+# Data Processing
+pandas>=2.2.0
+numpy>=1.26.0
+scikit-learn>=1.4.0
+
+# Logging/Monitoring
+tensorboard>=2.15.0
+tqdm>=4.66.0
+
+# Development
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+black>=24.1.0
+ruff>=0.2.0
+mypy>=1.8.0
