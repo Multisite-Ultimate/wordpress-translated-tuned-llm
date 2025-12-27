@@ -1,0 +1,65 @@
+# AutoTrain Advanced Configuration
+# Use this config with HuggingFace AutoTrain for fine-tuning
+#
+# To use:
+# 1. Upload your dataset to HF Hub: ./run.py dataset push nl
+# 2. Go to https://huggingface.co/spaces/autotrain-projects/autotrain-advanced
+# 3. Upload this config or manually enter these settings
+
+task: llm-sft  # Supervised Fine-Tuning for LLMs
+
+# Base Model
+base_model: mistralai/Mistral-7B-Instruct-v0.2
+
+# Dataset Configuration
+# Replace YOUR_USERNAME with your actual HuggingFace username
+project_name: wordpress-translator-nl
+data:
+  path: YOUR_USERNAME/wordpress-translations-nl
+  train_split: train
+  valid_split: test
+  text_column: text  # Pre-formatted with Mistral instruction template
+
+# Training Configuration (QLoRA)
+training:
+  # LoRA settings
+  use_peft: true
+  quantization: int4  # 4-bit quantization
+  lora_r: 32          # LoRA rank (lower for AutoTrain to save memory)
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+
+  # Training hyperparameters
+  epochs: 1                    # Start with 1 epoch on AutoTrain
+  batch_size: 2                # Per-device batch size
+  gradient_accumulation: 8     # Effective batch = 16
+  learning_rate: 0.0002        # 2e-4
+  warmup_ratio: 0.03
+  weight_decay: 0.001
+  max_grad_norm: 0.3
+
+  # Optimizer
+  optimizer: paged_adamw_8bit
+  lr_scheduler: cosine
+
+  # Precision
+  mixed_precision: bf16
+
+  # Sequence length
+  max_seq_length: 512
+
+  # Checkpointing
+  gradient_checkpointing: true
+
+  # Logging
+  logging_steps: 10
+  save_steps: 500
+
+# Hardware
+# AutoTrain will automatically select available GPU
+# Recommended: A10G (24GB) or A100 (40/80GB)
+
+# Estimated costs on AutoTrain (as of 2024):
+# - A10G: ~$1.05/hr, ~4-6 hours for 1 epoch = ~$5-7
+# - A100-40GB: ~$4.13/hr, ~2-3 hours for 1 epoch = ~$8-12

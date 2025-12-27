@@ -149,6 +149,7 @@ class TextCleaner:
         min_length: int = 1,
         max_length: int = 512,
         check_placeholders: bool = True,
+        filter_same_text: bool = False,
     ) -> tuple[bool, Optional[str]]:
         """Validate a translation pair.
 
@@ -158,6 +159,9 @@ class TextCleaner:
             min_length: Minimum source length
             max_length: Maximum source length
             check_placeholders: Whether to verify placeholder consistency
+            filter_same_text: Whether to filter pairs where source equals target.
+                Default False - keeps these pairs so model learns when NOT to translate
+                (e.g., "API", "HTTP", brand names, technical terms)
 
         Returns:
             Tuple of (is_valid, reason_if_invalid)
@@ -177,9 +181,10 @@ class TextCleaner:
         if source_len > max_length:
             return False, f"Source too long ({source_len} > {max_length})"
 
-        # Check for identical source and target
-        if source.strip() == target.strip():
-            # Allow if it's a proper noun, URL, or technical term
+        # Optionally check for identical source and target
+        # Default: keep same-text pairs (model learns when NOT to translate)
+        if filter_same_text and source.strip() == target.strip():
+            # Still allow obvious untranslatables even when filtering
             if not self._is_likely_untranslatable(source):
                 return False, "Source equals target"
 

@@ -59,6 +59,8 @@ class PairExtractor:
         filter_duplicates: bool = True,
         filter_fuzzy: bool = True,
         check_placeholders: bool = True,
+        include_context_in_dedup: bool = True,
+        filter_same_text: bool = False,
     ):
         """Initialize the extractor.
 
@@ -70,6 +72,10 @@ class PairExtractor:
             filter_duplicates: Whether to remove duplicate source texts
             filter_fuzzy: Whether to filter fuzzy translations
             check_placeholders: Whether to check placeholder consistency
+            include_context_in_dedup: Whether to include PO context in dedup key
+                (True = same source with different context = different entries)
+            filter_same_text: Whether to filter pairs where source equals target.
+                Default False - keeps these so model learns when NOT to translate
         """
         self.parser = parser or POParser(include_fuzzy=not filter_fuzzy)
         self.cleaner = cleaner or TextCleaner()
@@ -78,6 +84,8 @@ class PairExtractor:
         self.filter_duplicates = filter_duplicates
         self.filter_fuzzy = filter_fuzzy
         self.check_placeholders = check_placeholders
+        self.include_context_in_dedup = include_context_in_dedup
+        self.filter_same_text = filter_same_text
 
     def extract_from_directory(
         self,
@@ -123,6 +131,9 @@ class PairExtractor:
                 # Handle deduplication
                 if self.filter_duplicates:
                     dedup_key = self.cleaner.normalize_for_dedup(pair.source)
+                    # Include context in dedup key if enabled (preserves context-specific translations)
+                    if self.include_context_in_dedup and pair.context:
+                        dedup_key = f"{dedup_key}::{self.cleaner.normalize_for_dedup(pair.context)}"
 
                     if dedup_key in seen_sources:
                         stats.duplicates_removed += 1
@@ -173,6 +184,7 @@ class PairExtractor:
             min_length=self.min_source_length,
             max_length=self.max_source_length,
             check_placeholders=self.check_placeholders,
+            filter_same_text=self.filter_same_text,
         )
 
         if not is_valid:

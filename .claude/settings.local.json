@@ -21,7 +21,11 @@
       "Bash(export:*)",
       "Bash(PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128 ./run.py:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(chmod:*)",
+      "Bash(git push)",
+      "Bash(ls:*)",
+      "Bash(git check-ignore:*)"
     ]
   }
 }

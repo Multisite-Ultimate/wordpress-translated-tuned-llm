@@ -202,3 +202,84 @@ def export_dataset(
         raise typer.Exit(1)
 
     console.print(f"[green]Exported {len(dataset[split])} examples to {output_file}[/green]")
+
+
+@app.command("push")
+def push_to_hub(
+    locale: str = typer.Argument(..., help="Locale code (e.g., 'nl', 'de')"),
+    repo_name: str = typer.Option(
+        None,
+        "--repo",
+        "-r",
+        help="Repository name (default: wordpress-translations-{locale})",
+    ),
+    organization: str = typer.Option(
+        None,
+        "--org",
+        help="Organization name (uses your username if not specified)",
+    ),
+    private: bool = typer.Option(
+        False,
+        "--private",
+        help="Make the dataset private",
+    ),
+    data_dir: Path = typer.Option(
+        "./data/datasets",
+        "--data-dir",
+        "-d",
+        help="Datasets directory",
+    ),
+):
+    """Push dataset to Hugging Face Hub for AutoTrain."""
+    import json
+    from datasets import load_from_disk
+    from huggingface_hub import HfApi, login
+
+    dataset_path = data_dir / locale
+    stats_path = dataset_path / "stats.json"
+
+    if not dataset_path.exists():
+        console.print(f"[red]No dataset found for locale: {locale}[/red]")
+        console.print("Run 'wp-translate dataset build' first.")
+        raise typer.Exit(1)
+
+    # Login to Hugging Face
+    console.print("[bold]Authenticating with Hugging Face...[/bold]")
+    try:
+        api = HfApi()
+        user_info = api.whoami()
+        console.print(f"Logged in as: {user_info['name']}")
+    except Exception:
+        console.print("Please login to Hugging Face Hub first:")
+        console.print("  Run: huggingface-cli login")
+        raise typer.Exit(1)
+
+    # Load dataset
+    console.print(f"\n[bold]Loading dataset from {dataset_path}...[/bold]")
+    dataset = load_from_disk(str(dataset_path))
+    console.print(f"  Train: {len(dataset['train']):,} examples")
+    console.print(f"  Test: {len(dataset['test']):,} examples")
+
+    # Determine repo name
+    final_repo_name = repo_name or f"wordpress-translations-{locale}"
+    if organization:
+        repo_id = f"{organization}/{final_repo_name}"
+    else:
+        repo_id = f"{user_info['name']}/{final_repo_name}"
+
+    console.print(f"\n[bold]Pushing to: {repo_id}[/bold]")
+    console.print(f"Visibility: {'private' if private else 'public'}")
+
+    # Push to Hub
+    dataset.push_to_hub(repo_id, private=private)
+
+    console.print(f"\n[bold green]✓ Dataset uploaded successfully![/bold green]")
+    console.print(f"  View at: https://huggingface.co/datasets/{repo_id}")
+    console.print()
+    console.print("[bold]Next steps for AutoTrain:[/bold]")
+    console.print("  1. Go to https://huggingface.co/spaces/autotrain-projects/autotrain-advanced")
+    console.print("  2. Select 'LLM SFT' task")
+    console.print(f"  3. Choose your dataset: {repo_id}")
+    console.print("  4. Set text column: 'text'")
+    console.print("  5. Choose base model: mistralai/Mistral-7B-Instruct-v0.2")
+    console.print("  6. Start training!")

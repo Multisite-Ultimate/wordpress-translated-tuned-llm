@@ -244,3 +244,199 @@ def training_info(
     for f in sorted(adapter_path.iterdir()):
         size = f.stat().st_size / 1e6
         console.print(f"  {f.name}: {size:.2f} MB")
+
+
+@app.command("push")
+def push_model_to_hub(
+    locale: str = typer.Argument(..., help="Locale code (e.g., 'nl', 'de')"),
+    repo_name: str = typer.Option(
+        None,
+        "--repo",
+        "-r",
+        help="Repository name (default: mistral-7b-wordpress-{locale})",
+    ),
+    organization: str = typer.Option(
+        None,
+        "--org",
+        help="Organization name (uses your username if not specified)",
+    ),
+    private: bool = typer.Option(
+        False,
+        "--private",
+        help="Make the model private",
+    ),
+    adapter_only: bool = typer.Option(
+        True,
+        "--adapter-only/--merged",
+        help="Push only adapters (default) or merged model",
+    ),
+    adapter_path: Optional[Path] = typer.Option(
+        None,
+        "--adapter",
+        "-a",
+        help="Path to adapter (default: models/adapters/{locale})",
+    ),
+):
+    """Push trained model to Hugging Face Hub."""
+    import json
+    from huggingface_hub import HfApi, create_repo
+    from peft import PeftModel
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from src.wp_translation.utils.paths import PathManager
+
+    paths = PathManager()
+
+    # Determine adapter path
+    if adapter_path is None:
+        adapter_path = paths.get_locale_adapter_dir(locale)
+
+    if not adapter_path.exists():
+        console.print(f"[red]Adapter not found: {adapter_path}[/red]")
+        console.print("Train a model first with: ./run.py train run {locale}")
+        raise typer.Exit(1)
+
+    # Check for adapter config to get base model
+    config_path = adapter_path / "adapter_config.json"
+    if not config_path.exists():
+        console.print(f"[red]No adapter_config.json found in {adapter_path}[/red]")
+        raise typer.Exit(1)
+
+    with open(config_path) as f:
+        adapter_config = json.load(f)
+    base_model = adapter_config.get("base_model_name_or_path", "mistralai/Mistral-7B-Instruct-v0.2")
+
+    # Login to Hugging Face
+    console.print("[bold]Authenticating with Hugging Face...[/bold]")
+    try:
+        api = HfApi()
+        user_info = api.whoami()
+        console.print(f"Logged in as: {user_info['name']}")
+    except Exception:
+        console.print("Please login to Hugging Face Hub first:")
+        console.print("  Run: huggingface-cli login")
+        raise typer.Exit(1)
+
+    # Determine repo name
+    final_repo_name = repo_name or f"mistral-7b-wordpress-{locale}"
+    if organization:
+        repo_id = f"{organization}/{final_repo_name}"
+    else:
+        repo_id = f"{user_info['name']}/{final_repo_name}"
+
+    console.print(f"\n[bold]Model Info:[/bold]")
+    console.print(f"  Base model: {base_model}")
+    console.print(f"  Adapter path: {adapter_path}")
+    console.print(f"  Push type: {'adapter only' if adapter_only else 'merged model'}")
+    console.print(f"\n[bold]Pushing to: {repo_id}[/bold]")
+    console.print(f"Visibility: {'private' if private else 'public'}")
+
+    if adapter_only:
+        # Push just the adapter files
+        console.print("\nUploading adapter files...")
+        api.create_repo(repo_id, exist_ok=True, private=private)
+        api.upload_folder(
+            folder_path=str(adapter_path),
+            repo_id=repo_id,
+            repo_type="model",
+        )
+    else:
+        # Merge and push full model
+        import torch
+
+        console.print("\nLoading base model...")
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            torch_dtype=torch.float16,
+            device_map="auto",
+            trust_remote_code=True,
+        )
+
+        console.print("Loading adapter...")
+        model = PeftModel.from_pretrained(model, adapter_path)
+
+        console.print("Merging...")
+        model = model.merge_and_unload()
+
+        console.print("Pushing merged model to Hub...")
+        model.push_to_hub(repo_id, private=private)
+
+        tokenizer = AutoTokenizer.from_pretrained(adapter_path)
+        tokenizer.push_to_hub(repo_id)
+
+    # Create model card
+    readme_content = f"""---
+language:
+  - en
+  - {locale}
+license: apache-2.0
+base_model: {base_model}
+tags:
+  - translation
+  - wordpress
+  - fine-tuned
+  - {'lora' if adapter_only else 'merged'}
+  - mistral
+---
+
+# WordPress Translation Model (English → {locale.upper()})
+
+Fine-tuned Mistral-7B for translating WordPress content from English to {locale.upper()}.
+
+## Model Description
+
+This model was fine-tuned on WordPress translation data using QLoRA (4-bit quantization + LoRA adapters).
+
+- **Base Model:** {base_model}
+- **Fine-tuning Method:** QLoRA
+- **Language Pair:** English → {locale.upper()}
+- **Domain:** WordPress plugins, themes, and core
+
+## Usage
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+{'from peft import PeftModel' if adapter_only else ''}
+
+# Load model
+{'base_model = AutoModelForCausalLM.from_pretrained("' + base_model + '", device_map="auto")' if adapter_only else 'model = AutoModelForCausalLM.from_pretrained("' + repo_id + '", device_map="auto")'}
+{'model = PeftModel.from_pretrained(base_model, "' + repo_id + '")' if adapter_only else ''}
+tokenizer = AutoTokenizer.from_pretrained("{repo_id}")
+
+# Translate
+prompt = '''<s>[INST] Translate the following WordPress text from English to {locale.upper()}.
+Preserve any placeholders like %s, %d, or {{name}}.
+
+Add to cart [/INST]'''
+
+inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+outputs = model.generate(**inputs, max_new_tokens=100)
+print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+```
+
+## Training Data
+
+Fine-tuned on ~200k+ WordPress translation pairs from translate.wordpress.org.
+
+## License
+
+Apache 2.0
+"""
+
+    console.print("Updating model card...")
+    api.upload_file(
+        path_or_fileobj=readme_content.encode(),
+        path_in_repo="README.md",
+        repo_id=repo_id,
+        repo_type="model",
+    )
+
+    console.print(f"\n[bold green]✓ Model uploaded successfully![/bold green]")
+    console.print(f"  View at: https://huggingface.co/{repo_id}")
+    console.print()
+    console.print("[bold]To use this model:[/bold]")
+    if adapter_only:
+        console.print(f'  from peft import PeftModel')
+        console.print(f'  base = AutoModelForCausalLM.from_pretrained("{base_model}")')
+        console.print(f'  model = PeftModel.from_pretrained(base, "{repo_id}")')
+    else:
+        console.print(f'  model = AutoModelForCausalLM.from_pretrained("{repo_id}")')

@@ -175,8 +175,8 @@ class POParser:
 
         # Look for known project type directories
         for i, part in enumerate(parts):
-            if part in ("wp-plugins", "wp-themes", "wordpress"):
-                project_type = part
+            if part in ("wp-plugins", "wp-themes", "wordpress", "wp"):
+                project_type = "wordpress" if part == "wp" else part
                 # Project name is typically the next part or filename
                 if i + 1 < len(parts):
                     project_name = parts[i + 1]
